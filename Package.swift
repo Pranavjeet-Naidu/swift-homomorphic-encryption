@@ -35,6 +35,10 @@ let package = Package(
             name: "ModularArithmetic",
             targets: ["ModularArithmetic"]),
         .library(
+            name: "BfvCInterface",
+            type: .dynamic,
+            targets: ["BfvCInterface"]),
+        .library(
             name: "HomomorphicEncryption",
             targets: ["HomomorphicEncryption"]),
         .library(
@@ -81,6 +85,14 @@ let package = Package(
             path: "Sources/CUtil",
             sources: ["zeroize.c"],
             publicHeadersPath: "."),
+        .target(
+            name: "BfvCInterface",
+            dependencies: [
+                "HomomorphicEncryption",
+                "ModularArithmetic"
+            ],
+            path: "Sources/BfvCInterface",
+            sources: ["BfvCInterface.swift"]),
         .target(
             name: "HomomorphicEncryption",
             dependencies: [
