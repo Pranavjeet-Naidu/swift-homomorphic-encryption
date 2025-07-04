@@ -5,78 +5,91 @@ import HomomorphicEncryption
 // MARK: - Wrapper Classes
 
 /// Wrapper for encryption parameters
-public class BfvEncryptionParametersWrapper {
-    public var parameters: EncryptionParameters<UInt64>
+nonisolated public class BfvEncryptionParametersWrapper {
+    nonisolated public var parameters: EncryptionParameters<UInt64>
     
-    public init(parameters: EncryptionParameters<UInt64>) {
+    nonisolated public init(parameters: EncryptionParameters<UInt64>) {
         self.parameters = parameters
     }
 }
 
 /// Wrapper for context
-public class BfvContextWrapper {
-    public var context: Context<Bfv<UInt64>>
+nonisolated public class BfvContextWrapper {
+    nonisolated public var context: Context<Bfv<UInt64>>
     
-    public init(context: Context<Bfv<UInt64>>) {
+    nonisolated public init(context: Context<Bfv<UInt64>>) {
         self.context = context
     }
 }
 
 /// Wrapper for secret key
-public class BfvSecretKeyWrapper {
-    public var secretKey: SecretKey<Bfv<UInt64>>
+nonisolated public class BfvSecretKeyWrapper {
+    nonisolated public var secretKey: SecretKey<Bfv<UInt64>>
     
-    public init(secretKey: SecretKey<Bfv<UInt64>>) {
+    nonisolated public init(secretKey: SecretKey<Bfv<UInt64>>) {
         self.secretKey = secretKey
     }
 }
 
 /// Wrapper for plaintext
-public class BfvPlaintextWrapper {
-    public var plaintext: Plaintext<Bfv<UInt64>, Coeff>
+nonisolated public class BfvPlaintextWrapper {
+    nonisolated public var plaintext: Plaintext<Bfv<UInt64>, Coeff>
     
-    public init(plaintext: Plaintext<Bfv<UInt64>, Coeff>) {
+    nonisolated public init(plaintext: Plaintext<Bfv<UInt64>, Coeff>) {
         self.plaintext = plaintext
     }
 }
 
 /// Wrapper for ciphertext
-public class BfvCiphertextWrapper {
-    public var ciphertext: Ciphertext<Bfv<UInt64>, Coeff>
+nonisolated public class BfvCiphertextWrapper {
+    nonisolated public var ciphertext: Ciphertext<Bfv<UInt64>, Coeff>
     
-    public init(ciphertext: Ciphertext<Bfv<UInt64>, Coeff>) {
+    nonisolated public init(ciphertext: Ciphertext<Bfv<UInt64>, Coeff>) {
         self.ciphertext = ciphertext
     }
 }
 
 /// Wrapper for evaluation key
-public class BfvEvaluationKeyWrapper {
-    public var evaluationKey: EvaluationKey<Bfv<UInt64>>
+nonisolated public class BfvEvaluationKeyWrapper {
+    nonisolated public var evaluationKey: EvaluationKey<Bfv<UInt64>>
     
-    public init(evaluationKey: EvaluationKey<Bfv<UInt64>>) {
+    nonisolated public init(evaluationKey: EvaluationKey<Bfv<UInt64>>) {
         self.evaluationKey = evaluationKey
     }
 }
 
 // MARK: - Error Handling
-
-/// Function to get last error message
-@MainActor
-var lastErrorMessage: String = ""
-
-@MainActor
-func setLastError(_ message: String) {
-    lastErrorMessage = message
+nonisolated public actor ErrorHandlingActorType {}
+// Define a custom global actor for our error handling
+@globalActor nonisolated public struct ErrorHandlingActor: GlobalActor, Sendable {
+    nonisolated public static let shared = ErrorHandlingActorType()
 }
 
+// Thread-safe error handling
+private let errorLock = NSLock()
+
+// Explicitly isolate to our custom actor to silence the warning
+@preconcurrency
+nonisolated(unsafe) public var threadSafeLastError: String = ""
+
+
+nonisolated func setThreadSafeError(_ message: String) {
+    errorLock.lock()
+    defer { errorLock.unlock() }
+    threadSafeLastError = message
+}
+
+
 @_cdecl("bfv_get_last_error")
-@MainActor
-public func bfv_get_last_error() -> UnsafeMutablePointer<Int8>? {
-    return strdup(lastErrorMessage) as UnsafeMutablePointer<Int8>?
+
+nonisolated public func bfv_get_last_error() -> UnsafeMutablePointer<Int8>? {
+    errorLock.lock()
+    defer { errorLock.unlock() }
+    return strdup(threadSafeLastError) as UnsafeMutablePointer<Int8>?
 }
 
 @_cdecl("bfv_free_string")
-public func bfv_free_string(_ ptr: UnsafeMutablePointer<Int8>?) {
+nonisolated public func bfv_free_string(_ ptr: UnsafeMutablePointer<Int8>?) {
     if let ptr = ptr {
         free(ptr)
     }
@@ -85,20 +98,20 @@ public func bfv_free_string(_ ptr: UnsafeMutablePointer<Int8>?) {
 // MARK: - Parameter Creation
 
 @_cdecl("bfv_create_parameters_from_preset")
-@MainActor
-public func bfv_create_parameters_from_preset(_ preset: Int32) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_create_parameters_from_preset(_ preset: Int32) -> UnsafeMutableRawPointer? {
     do {
         let presetParameter: PredefinedRlweParameters
         
         switch preset {
         case 0:
-            presetParameter = .insecure_n_8_logq_5x18_logt_5
+            presetParameter = .n_8192_logq_28_60_60_logt_20
         case 1:
             presetParameter = .n_4096_logq_27_28_28_logt_5
         case 2:
-            presetParameter = .n_8192_logq_28_60_60_logt_20
+            presetParameter = .n_8192_logq_3x55_logt_42
         default:
-            setLastError("Invalid preset value")
+            setThreadSafeError("Invalid preset value")
             return nil
         }
         
@@ -106,13 +119,13 @@ public func bfv_create_parameters_from_preset(_ preset: Int32) -> UnsafeMutableR
         let wrapper = BfvEncryptionParametersWrapper(parameters: params)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to create parameters: \(error)")
+        setThreadSafeError("Failed to create parameters: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_free_parameters")
-public func bfv_free_parameters(_ ptr: UnsafeMutableRawPointer?) {
+nonisolated public func bfv_free_parameters(_ ptr: UnsafeMutableRawPointer?) {
     if let ptr = ptr {
         Unmanaged<BfvEncryptionParametersWrapper>.fromOpaque(ptr).release()
     }
@@ -121,10 +134,10 @@ public func bfv_free_parameters(_ ptr: UnsafeMutableRawPointer?) {
 // MARK: - Context Creation
 
 @_cdecl("bfv_create_context")
-@MainActor
-public func bfv_create_context(_ parametersPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_create_context(_ parametersPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let parametersPtr = parametersPtr else {
-        setLastError("Null parameters pointer")
+        setThreadSafeError("Null parameters pointer")
         return nil
     }
     
@@ -134,13 +147,14 @@ public func bfv_create_context(_ parametersPtr: UnsafeMutableRawPointer?) -> Uns
         let wrapper = BfvContextWrapper(context: context)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to create context: \(error)")
+        setThreadSafeError("Failed to create context: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_free_context")
-public func bfv_free_context(_ ptr: UnsafeMutableRawPointer?) {
+
+nonisolated public func bfv_free_context(_ ptr: UnsafeMutableRawPointer?) {
     if let ptr = ptr {
         Unmanaged<BfvContextWrapper>.fromOpaque(ptr).release()
     }
@@ -149,10 +163,10 @@ public func bfv_free_context(_ ptr: UnsafeMutableRawPointer?) {
 // MARK: - Secret Key Generation
 
 @_cdecl("bfv_generate_secret_key")
-@MainActor
-public func bfv_generate_secret_key(_ contextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_generate_secret_key(_ contextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let contextPtr = contextPtr else {
-        setLastError("Null context pointer")
+        setThreadSafeError("Null context pointer")
         return nil
     }
     
@@ -162,13 +176,13 @@ public func bfv_generate_secret_key(_ contextPtr: UnsafeMutableRawPointer?) -> U
         let wrapper = BfvSecretKeyWrapper(secretKey: secretKey)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to generate secret key: \(error)")
+        setThreadSafeError("Failed to generate secret key: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_free_secret_key")
-public func bfv_free_secret_key(_ ptr: UnsafeMutableRawPointer?) {
+nonisolated public func bfv_free_secret_key(_ ptr: UnsafeMutableRawPointer?) {
     if let ptr = ptr {
         Unmanaged<BfvSecretKeyWrapper>.fromOpaque(ptr).release()
     }
@@ -177,10 +191,10 @@ public func bfv_free_secret_key(_ ptr: UnsafeMutableRawPointer?) {
 // MARK: - Evaluation Key Generation
 
 @_cdecl("bfv_generate_evaluation_key")
-@MainActor
-public func bfv_generate_evaluation_key(_ contextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_generate_evaluation_key(_ contextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let contextPtr = contextPtr, let secretKeyPtr = secretKeyPtr else {
-        setLastError("Null context or secret key pointer")
+        setThreadSafeError("Null context or secret key pointer")
         return nil
     }
     
@@ -202,13 +216,13 @@ public func bfv_generate_evaluation_key(_ contextPtr: UnsafeMutableRawPointer?, 
         let wrapper = BfvEvaluationKeyWrapper(evaluationKey: evalKey)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to generate evaluation key: \(error)")
+        setThreadSafeError("Failed to generate evaluation key: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_free_evaluation_key")
-public func bfv_free_evaluation_key(_ ptr: UnsafeMutableRawPointer?) {
+nonisolated public func bfv_free_evaluation_key(_ ptr: UnsafeMutableRawPointer?) {
     if let ptr = ptr {
         Unmanaged<BfvEvaluationKeyWrapper>.fromOpaque(ptr).release()
     }
@@ -217,42 +231,52 @@ public func bfv_free_evaluation_key(_ ptr: UnsafeMutableRawPointer?) {
 // MARK: - Encoding and Encryption
 
 @_cdecl("bfv_encode_int_array")
-@MainActor
-public func bfv_encode_int_array(_ contextPtr: UnsafeMutableRawPointer?, _ values: UnsafePointer<Int64>?, _ count: Int32) -> UnsafeMutableRawPointer? {
+nonisolated public func bfv_encode_int_array(_ contextPtr: UnsafeMutableRawPointer?, _ values: UnsafePointer<Int64>?, _ count: Int32) -> UnsafeMutableRawPointer? {
+    // Debug logging
+    print("bfv_encode_int_array called with context: \(String(describing: contextPtr)), values: \(String(describing: values)), count: \(count)")
+    
     guard let contextPtr = contextPtr, let values = values else {
-        setLastError("Null context pointer or values array")
+        setThreadSafeError("Null context pointer or values array")
         return nil
     }
     
     do {
         let contextWrapper = Unmanaged<BfvContextWrapper>.fromOpaque(contextPtr).takeUnretainedValue()
+        print("Context unwrapped successfully")
+        
         let valuesArray = Array(UnsafeBufferPointer(start: values, count: Int(count))).map { UInt64($0) }
+        print("Values array converted: \(valuesArray)")
+        
+        // Explicitly verify the context is valid before encoding
+        print("Polynomial modulus degree: \(contextWrapper.context.encryptionParameters.polyDegree)")
         
         let plaintext: Plaintext<Bfv<UInt64>, Coeff> = try contextWrapper.context.encode(
             values: valuesArray,
             format: .coefficient
         )
+        print("Encoding successful")
         
         let wrapper = BfvPlaintextWrapper(plaintext: plaintext)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to encode values: \(error)")
+        setThreadSafeError("Failed to encode values: \(error)")
+        print("Encoding error: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_free_plaintext")
-public func bfv_free_plaintext(_ ptr: UnsafeMutableRawPointer?) {
+nonisolated public func bfv_free_plaintext(_ ptr: UnsafeMutableRawPointer?) {
     if let ptr = ptr {
         Unmanaged<BfvPlaintextWrapper>.fromOpaque(ptr).release()
     }
 }
 
 @_cdecl("bfv_encrypt")
-@MainActor
-public func bfv_encrypt(_ plaintextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_encrypt(_ plaintextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let plaintextPtr = plaintextPtr, let secretKeyPtr = secretKeyPtr else {
-        setLastError("Null plaintext or secret key pointer")
+        setThreadSafeError("Null plaintext or secret key pointer")
         return nil
     }
     
@@ -265,13 +289,13 @@ public func bfv_encrypt(_ plaintextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr
         let wrapper = BfvCiphertextWrapper(ciphertext: ciphertext)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to encrypt: \(error)")
+        setThreadSafeError("Failed to encrypt: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_free_ciphertext")
-public func bfv_free_ciphertext(_ ptr: UnsafeMutableRawPointer?) {
+nonisolated public func bfv_free_ciphertext(_ ptr: UnsafeMutableRawPointer?) {
     if let ptr = ptr {
         Unmanaged<BfvCiphertextWrapper>.fromOpaque(ptr).release()
     }
@@ -280,10 +304,10 @@ public func bfv_free_ciphertext(_ ptr: UnsafeMutableRawPointer?) {
 // MARK: - Decryption and Decoding
 
 @_cdecl("bfv_decrypt")
-@MainActor
-public func bfv_decrypt(_ ciphertextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_decrypt(_ ciphertextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let ciphertextPtr = ciphertextPtr, let secretKeyPtr = secretKeyPtr else {
-        setLastError("Null ciphertext or secret key pointer")
+        setThreadSafeError("Null ciphertext or secret key pointer")
         return nil
     }
     
@@ -296,16 +320,16 @@ public func bfv_decrypt(_ ciphertextPtr: UnsafeMutableRawPointer?, _ secretKeyPt
         let wrapper = BfvPlaintextWrapper(plaintext: plaintext)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to decrypt: \(error)")
+        setThreadSafeError("Failed to decrypt: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_decode_to_int_array")
-@MainActor
-public func bfv_decode_to_int_array(_ plaintextPtr: UnsafeMutableRawPointer?, _ resultArray: UnsafeMutablePointer<Int64>?, _ maxCount: Int32, _ actualCount: UnsafeMutablePointer<Int32>?) -> Bool {
+
+nonisolated public func bfv_decode_to_int_array(_ plaintextPtr: UnsafeMutableRawPointer?, _ resultArray: UnsafeMutablePointer<Int64>?, _ maxCount: Int32, _ actualCount: UnsafeMutablePointer<Int32>?) -> Bool {
     guard let plaintextPtr = plaintextPtr, let resultArray = resultArray, let actualCount = actualCount else {
-        setLastError("Null plaintext pointer or result array")
+        setThreadSafeError("Null plaintext pointer or result array")
         return false
     }
     
@@ -321,7 +345,7 @@ public func bfv_decode_to_int_array(_ plaintextPtr: UnsafeMutableRawPointer?, _ 
         actualCount.pointee = Int32(count)
         return true
     } catch {
-        setLastError("Failed to decode plaintext: \(error)")
+        setThreadSafeError("Failed to decode plaintext: \(error)")
         return false
     }
 }
@@ -329,10 +353,10 @@ public func bfv_decode_to_int_array(_ plaintextPtr: UnsafeMutableRawPointer?, _ 
 // MARK: - Homomorphic Operations
 
 @_cdecl("bfv_add")
-@MainActor
-public func bfv_add(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_add(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let lhsPtr = lhsPtr, let rhsPtr = rhsPtr else {
-        setLastError("Null ciphertext pointer(s)")
+        setThreadSafeError("Null ciphertext pointer(s)")
         return nil
     }
     
@@ -346,16 +370,16 @@ public func bfv_add(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableR
         let wrapper = BfvCiphertextWrapper(ciphertext: result)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to add ciphertexts: \(error)")
+        setThreadSafeError("Failed to add ciphertexts: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_sub")
-@MainActor
-public func bfv_sub(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_sub(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let lhsPtr = lhsPtr, let rhsPtr = rhsPtr else {
-        setLastError("Null ciphertext pointer(s)")
+        setThreadSafeError("Null ciphertext pointer(s)")
         return nil
     }
     
@@ -369,16 +393,16 @@ public func bfv_sub(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableR
         let wrapper = BfvCiphertextWrapper(ciphertext: result)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to subtract ciphertexts: \(error)")
+        setThreadSafeError("Failed to subtract ciphertexts: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_multiply")
-@MainActor
-public func bfv_multiply(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableRawPointer?, _ evalKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_multiply(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableRawPointer?, _ evalKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let lhsPtr = lhsPtr, let rhsPtr = rhsPtr, let evalKeyPtr = evalKeyPtr else {
-        setLastError("Null ciphertext or evaluation key pointer(s)")
+        setThreadSafeError("Null ciphertext or evaluation key pointer(s)")
         return nil
     }
     
@@ -397,16 +421,16 @@ public func bfv_multiply(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMut
         let wrapper = BfvCiphertextWrapper(ciphertext: resultCoeff)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to multiply ciphertexts: \(error)")
+        setThreadSafeError("Failed to multiply ciphertexts: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_sub_plaintext")
-@MainActor
-public func bfv_sub_plaintext(_ ciphertextPtr: UnsafeMutableRawPointer?, _ plaintextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_sub_plaintext(_ ciphertextPtr: UnsafeMutableRawPointer?, _ plaintextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let ciphertextPtr = ciphertextPtr, let plaintextPtr = plaintextPtr else {
-        setLastError("Null ciphertext or plaintext pointer")
+        setThreadSafeError("Null ciphertext or plaintext pointer")
         return nil
     }
     
@@ -420,16 +444,16 @@ public func bfv_sub_plaintext(_ ciphertextPtr: UnsafeMutableRawPointer?, _ plain
         let wrapper = BfvCiphertextWrapper(ciphertext: result)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to subtract plaintext from ciphertext: \(error)")
+        setThreadSafeError("Failed to subtract plaintext from ciphertext: \(error)")
         return nil
     }
 }
 
 @_cdecl("bfv_negate")
-@MainActor
-public func bfv_negate(_ ciphertextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_negate(_ ciphertextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let ciphertextPtr = ciphertextPtr else {
-        setLastError("Null ciphertext pointer")
+        setThreadSafeError("Null ciphertext pointer")
         return nil
     }
     
@@ -441,10 +465,10 @@ public func bfv_negate(_ ciphertextPtr: UnsafeMutableRawPointer?) -> UnsafeMutab
 }
 
 @_cdecl("bfv_add_plaintext")
-@MainActor
-public func bfv_add_plaintext(_ ciphertextPtr: UnsafeMutableRawPointer?, _ plaintextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+
+nonisolated public func bfv_add_plaintext(_ ciphertextPtr: UnsafeMutableRawPointer?, _ plaintextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let ciphertextPtr = ciphertextPtr, let plaintextPtr = plaintextPtr else {
-        setLastError("Null ciphertext or plaintext pointer")
+        setThreadSafeError("Null ciphertext or plaintext pointer")
         return nil
     }
     
@@ -458,7 +482,7 @@ public func bfv_add_plaintext(_ ciphertextPtr: UnsafeMutableRawPointer?, _ plain
         let wrapper = BfvCiphertextWrapper(ciphertext: result)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
-        setLastError("Failed to add plaintext to ciphertext: \(error)")
+        setThreadSafeError("Failed to add plaintext to ciphertext: \(error)")
         return nil
     }
 }
@@ -466,10 +490,10 @@ public func bfv_add_plaintext(_ ciphertextPtr: UnsafeMutableRawPointer?, _ plain
 // MARK: - Utility Functions
 
 @_cdecl("bfv_get_noise_budget")
-@MainActor
-public func bfv_get_noise_budget(_ ciphertextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr: UnsafeMutableRawPointer?) -> Double {
+
+nonisolated public func bfv_get_noise_budget(_ ciphertextPtr: UnsafeMutableRawPointer?, _ secretKeyPtr: UnsafeMutableRawPointer?) -> Double {
     guard let ciphertextPtr = ciphertextPtr, let secretKeyPtr = secretKeyPtr else {
-        setLastError("Null ciphertext or secret key pointer")
+        setThreadSafeError("Null ciphertext or secret key pointer")
         return -1
     }
     
@@ -479,7 +503,7 @@ public func bfv_get_noise_budget(_ ciphertextPtr: UnsafeMutableRawPointer?, _ se
         
         return try ciphertextWrapper.ciphertext.noiseBudget(using: secretKeyWrapper.secretKey, variableTime: false)
     } catch {
-        setLastError("Failed to compute noise budget: \(error)")
+        setThreadSafeError("Failed to compute noise budget: \(error)")
         return -1
     }
 }

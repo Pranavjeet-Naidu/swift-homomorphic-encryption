@@ -39,6 +39,7 @@ void bfv_free_evaluation_key(bfv_evaluation_key_t key);
 
 // Encoding/encryption
 bfv_plaintext_t bfv_encode_int_array(bfv_context_t context, const int64_t* values, int32_t count);
+
 void bfv_free_plaintext(bfv_plaintext_t plaintext);
 
 bfv_ciphertext_t bfv_encrypt(bfv_plaintext_t plaintext, bfv_secret_key_t secret_key);
