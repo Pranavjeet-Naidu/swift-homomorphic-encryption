@@ -14,7 +14,7 @@
 
 /// The functions in this extension are the default implementation of async methods of HE scheme.
 extension HeScheme {
-    // swiftlint:disable missing_docs
+    // swiftlint:disable missCing_docs
     @inlinable
     public static func rotateColumnsAsync(
         of ciphertext: inout CanonicalCiphertext,

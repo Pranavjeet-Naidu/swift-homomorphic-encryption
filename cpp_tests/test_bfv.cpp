@@ -10,7 +10,14 @@ int main() {
     printf("=== BFV Homomorphic Encryption Test ===\n\n");
     
     // 1. Create parameters
-    void* params = bfv_create_parameters_from_preset(2);
+    void* params = bfv_create_parameters_from_preset(6);
+    if (!params) {
+    const char* errMsg = bfv_get_last_error();
+    if (errMsg) {
+        printf("bfv_get_last_error: %s\n", errMsg);
+        bfv_free_string((char*)errMsg);
+    }
+}
     assert(params && "Failed to create parameters");
     printf("1. Parameters created successfully\n");
 

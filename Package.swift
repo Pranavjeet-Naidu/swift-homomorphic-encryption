@@ -94,6 +94,15 @@ let package = Package(
             path: "Sources/BfvCInterface",
             sources: ["BfvCInterface.swift"]),
         .target(
+            name: "ProtobufCInterface",
+            dependencies: [
+                "HomomorphicEncryption",
+                "ModularArithmetic",
+                "HomomorphicEncryptionProtobuf"
+            ],
+            path: "Sources/ProtobufCInterface",
+            sources: ["ProtobufCInterface.swift"]),
+        .target(
             name: "HomomorphicEncryption",
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto"),

@@ -98,8 +98,8 @@ nonisolated public func bfv_free_string(_ ptr: UnsafeMutablePointer<Int8>?) {
 // MARK: - Parameter Creation
 
 @_cdecl("bfv_create_parameters_from_preset")
-
 nonisolated public func bfv_create_parameters_from_preset(_ preset: Int32) -> UnsafeMutableRawPointer? {
+    print("bfv_create_parameters_from_preset called with preset:", preset)
     do {
         let presetParameter: PredefinedRlweParameters
         
@@ -110,6 +110,15 @@ nonisolated public func bfv_create_parameters_from_preset(_ preset: Int32) -> Un
             presetParameter = .n_4096_logq_27_28_28_logt_5
         case 2:
             presetParameter = .n_8192_logq_3x55_logt_42
+        case 3:
+            presetParameter = .n_4096_logq_27_28_28_logt_17      // t = 65537, batching-friendly
+        case 4:
+            presetParameter = .n_8192_logq_3x55_logt_24          // t = 8404993, batching-friendly
+        case 5:
+            presetParameter = .n_8192_logq_3x55_logt_29          // t = 268582913, batching-friendly
+        case 6:
+            presetParameter = .n_8192_logq_3x55_logt_30          // t = 536903681, batching-friendly
+        // case 2 (already present) is .n_8192_logq_3x55_logt_42, which is also batching-friendly
         default:
             setThreadSafeError("Invalid preset value")
             return nil
@@ -399,7 +408,6 @@ nonisolated public func bfv_sub(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: Un
 }
 
 @_cdecl("bfv_multiply")
-
 nonisolated public func bfv_multiply(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPtr: UnsafeMutableRawPointer?, _ evalKeyPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let lhsPtr = lhsPtr, let rhsPtr = rhsPtr, let evalKeyPtr = evalKeyPtr else {
         setThreadSafeError("Null ciphertext or evaluation key pointer(s)")
@@ -411,14 +419,11 @@ nonisolated public func bfv_multiply(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPt
         let rhsWrapper = Unmanaged<BfvCiphertextWrapper>.fromOpaque(rhsPtr).takeUnretainedValue()
         let evalKeyWrapper = Unmanaged<BfvEvaluationKeyWrapper>.fromOpaque(evalKeyPtr).takeUnretainedValue()
         
-        // Multiply the ciphertexts in the coefficient domain
-        let resultEval = try Bfv<UInt64>.multiplyWithoutScaling(lhsWrapper.ciphertext, rhsWrapper.ciphertext)
-        // Convert back to coefficient domain and drop the extended base
-        var resultCoeff = try Bfv<UInt64>.dropExtendedBase(from: resultEval)
-        // Relinearize to reduce ciphertext size
-        try Bfv<UInt64>.relinearize(&resultCoeff, using: evalKeyWrapper.evaluationKey)
+        var result = lhsWrapper.ciphertext
+        try result *= rhsWrapper.ciphertext  // This would call mulAssign internally
+        try Bfv<UInt64>.relinearize(&result, using: evalKeyWrapper.evaluationKey)
 
-        let wrapper = BfvCiphertextWrapper(ciphertext: resultCoeff)
+        let wrapper = BfvCiphertextWrapper(ciphertext: result)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
         setThreadSafeError("Failed to multiply ciphertexts: \(error)")
@@ -507,3 +512,5 @@ nonisolated public func bfv_get_noise_budget(_ ciphertextPtr: UnsafeMutableRawPo
         return -1
     }
 }
+
+
