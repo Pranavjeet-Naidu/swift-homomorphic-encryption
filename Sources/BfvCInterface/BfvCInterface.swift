@@ -513,4 +513,11 @@ nonisolated public func bfv_get_noise_budget(_ ciphertextPtr: UnsafeMutableRawPo
     }
 }
 
+@_cdecl("setThreadSafeError")
+public func setThreadSafeErrorC(_ message: UnsafePointer<CChar>?) {
+    if let message = message {
+        setThreadSafeError(String(cString: message))
+    }
+}
+
 
