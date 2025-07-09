@@ -2,6 +2,8 @@ import Foundation
 import ModularArithmetic
 import HomomorphicEncryption
 
+
+
 // MARK: - Wrapper Classes
 
 /// Wrapper for encryption parameters
@@ -513,11 +515,14 @@ nonisolated public func bfv_get_noise_budget(_ ciphertextPtr: UnsafeMutableRawPo
     }
 }
 
-@_cdecl("setThreadSafeError")
+@_cdecl("setThreadSafeErrorC")
 public func setThreadSafeErrorC(_ message: UnsafePointer<CChar>?) {
     if let message = message {
         setThreadSafeError(String(cString: message))
     }
 }
 
-
+@_cdecl("setThreadSafeError")
+public func setThreadSafeError(_ message: UnsafePointer<CChar>?) {
+    setThreadSafeErrorC(message)
+}

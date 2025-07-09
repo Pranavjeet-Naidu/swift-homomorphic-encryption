@@ -42,6 +42,10 @@ let package = Package(
             name: "HomomorphicEncryption",
             targets: ["HomomorphicEncryption"]),
         .library(
+            name: "ProtobufCInterface",
+            type: .dynamic,
+            targets: ["ProtobufCInterface"]),
+        .library(
             name: "HomomorphicEncryptionProtobuf",
             targets: ["HomomorphicEncryptionProtobuf"]),
         .library(
@@ -98,7 +102,8 @@ let package = Package(
             dependencies: [
                 "HomomorphicEncryption",
                 "ModularArithmetic",
-                "HomomorphicEncryptionProtobuf"
+                "HomomorphicEncryptionProtobuf",
+                "BfvCInterface"
             ],
             path: "Sources/ProtobufCInterface",
             sources: ["ProtobufCInterface.swift"]),

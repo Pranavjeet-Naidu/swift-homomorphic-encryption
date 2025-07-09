@@ -74,7 +74,7 @@
 
 int main() {
     printf("Step 1: Creating parameters and context\n");
-    bfv_parameters_t params = bfv_create_parameters_from_preset(2);
+    bfv_parameters_t params = bfv_create_parameters_from_preset(4);
     assert(params && "Failed to create parameters");
     bfv_context_t ctx = bfv_create_context(params);
     assert(ctx && "Failed to create context");

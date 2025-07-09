@@ -20,7 +20,7 @@ bfv_ciphertext_t bfv_sub_plaintext(bfv_ciphertext_t ciphertext, bfv_plaintext_t 
 
 // Error handling
 const char* bfv_get_last_error(void);
-void bfv_free_string(char* str);
+void bfv_free_string(const char* str);
 
 // Parameter creation
 bfv_parameters_t bfv_create_parameters_from_preset(int32_t preset);
@@ -66,7 +66,7 @@ double bfv_get_noise_budget(bfv_ciphertext_t ciphertext, bfv_secret_key_t secret
 size_t bfv_serialize_ciphertext_to_protobuf(bfv_ciphertext_t ct, uint8_t** out_bytes);
 
 // Deserialize Protobuf bytes to ciphertext
-bfv_ciphertext_t bfv_deserialize_ciphertext_from_protobuf(const uint8_t* bytes, size_t len);
+// bfv_ciphertext_t bfv_deserialize_ciphertext_from_protobuf(const uint8_t* bytes, size_t len);
 
 // Free a byte buffer allocated by Swift
 void bfv_free_bytes(uint8_t* bytes);
