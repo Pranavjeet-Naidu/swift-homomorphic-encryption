@@ -433,6 +433,46 @@ nonisolated public func bfv_multiply(_ lhsPtr: UnsafeMutableRawPointer?, _ rhsPt
     }
 }
 
+@_cdecl("bfv_multiply_plaintext")
+nonisolated public func bfv_multiply_plaintext(
+    _ ciphertextPtr: UnsafeMutableRawPointer?,
+    _ plaintextPtr: UnsafeMutableRawPointer?,
+    _ evalKeyPtr: UnsafeMutableRawPointer?
+) -> UnsafeMutableRawPointer? {
+    guard let ciphertextPtr = ciphertextPtr,
+          let plaintextPtr = plaintextPtr,
+          let evalKeyPtr = evalKeyPtr else {
+        setThreadSafeError("Null ciphertext, plaintext, or evaluation key pointer(s)")
+        return nil
+    }
+    do {
+        let ciphertextWrapper = Unmanaged<BfvCiphertextWrapper>.fromOpaque(ciphertextPtr).takeUnretainedValue()
+        let plaintextWrapper = Unmanaged<BfvPlaintextWrapper>.fromOpaque(plaintextPtr).takeUnretainedValue()
+        let evalKeyWrapper = Unmanaged<BfvEvaluationKeyWrapper>.fromOpaque(evalKeyPtr).takeUnretainedValue()
+
+        // Convert to NTT (Eval) form
+        let evalCiphertext = try Bfv<UInt64>.forwardNtt(ciphertextWrapper.ciphertext)
+        let evalPlaintext = try plaintextWrapper.plaintext.forwardNtt()
+
+        // Multiply in NTT domain
+        var result = evalCiphertext
+        try Bfv<UInt64>.mulAssign(&result, evalPlaintext)
+
+        //  Convert result back to Coeff form
+        var coeffResult = try Bfv<UInt64>.inverseNtt(result)
+
+        // Relinearize if needed
+        try Bfv<UInt64>.relinearize(&coeffResult, using: evalKeyWrapper.evaluationKey)
+
+        let wrapper = BfvCiphertextWrapper(ciphertext: coeffResult)
+        return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
+    } catch {
+        setThreadSafeError("Failed to multiply ciphertext by plaintext: \(error)")
+        return nil
+    }
+}
+
+
 @_cdecl("bfv_sub_plaintext")
 
 nonisolated public func bfv_sub_plaintext(_ ciphertextPtr: UnsafeMutableRawPointer?, _ plaintextPtr: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
