@@ -181,11 +181,11 @@ int main() {
     bfv_decode_to_int_array(pt_neg, neg_result, 4, &neg_count);
 
         // Post-processing for negative numbers:
-int64_t halfMod = 557057 / 2;  // 278528
-for (int i = 0; i < neg_count; ++i) {
-    if (neg_result[i] > halfMod) {
-        neg_result[i] -= 557057;  // subtract the actual modulus
-    }
+    int64_t halfMod = 536903681 / 2;  // 278528
+    for (int i = 0; i < neg_count; ++i) {
+        if (neg_result[i] > halfMod) {
+            neg_result[i] -= 536903681;  // subtract the actual modulus
+        }
 }
 
     printf("14. Negation result: [");
@@ -200,6 +200,32 @@ for (int i = 0; i < neg_count; ++i) {
 //    double noise = bfv_get_noise_budget(ct, sk);
 //    printf("15. Noise budget: %.2f bits\n", noise);
 //
+
+    // 16. Homomorphic multiply with plaintext
+    void* ct_mulpt = bfv_multiply_plaintext(ct, pt, ek);
+//  if (!ct_mulpt) {
+//  const char* errMsg = bfv_get_last_error();
+//   {
+//      printf("bfv_get_last_error: %s\n", errMsg);
+//      bfv_free_string((char*)errMsg);
+//  }
+//}
+    assert(ct_mulpt && "Failed to multiply ciphertext by plaintext");
+
+    // Verify multiplication with plaintext result
+    void* pt_mulpt = bfv_decrypt(ct_mulpt, sk);
+    int64_t mulpt_result[4] = {0};
+    int32_t mulpt_count = 0;
+    bfv_decode_to_int_array(pt_mulpt, mulpt_result, 4, &mulpt_count);
+    printf("16. Ciphertext * Plaintext multiplication result: [");
+    for (int i = 0; i < mulpt_count; ++i) {
+        printf("%ld", mulpt_result[i]);
+        if (i < mulpt_count - 1) printf(", ");
+    }
+    printf("] (expected: [100, 400, 900, 1600])\n");
+    bfv_free_plaintext(pt_mulpt);
+    bfv_free_ciphertext(ct_mulpt);
+
   //  printf("\n=== Freeing resources ===\n");
     // 17. Free all objects
     bfv_free_parameters(params);

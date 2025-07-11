@@ -18,6 +18,9 @@ typedef void* bfv_ciphertext_t;
 
 bfv_ciphertext_t bfv_sub_plaintext(bfv_ciphertext_t ciphertext, bfv_plaintext_t plaintext);
 
+
+bfv_ciphertext_t bfv_multiply_plaintext(bfv_ciphertext_t ciphertext, bfv_plaintext_t plaintext, bfv_evaluation_key_t eval_key);
+
 // Error handling
 const char* bfv_get_last_error(void);
 void bfv_free_string(const char* str);

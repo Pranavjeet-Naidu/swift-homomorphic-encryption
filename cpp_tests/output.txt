@@ -1,0 +1,26 @@
+=== BFV Homomorphic Encryption Test ===
+
+bfv_create_parameters_from_preset called with preset: 6
+1. Parameters created successfully
+2. Context created successfully
+3. Secret key generated successfully
+4. Evaluation key generated successfully
+About to encode values, context pointer: 0x55bcc4663e30
+Values array at 0x7ffc64545030: [10, 20, 30, 40]
+bfv_encode_int_array called with context: Optional(0x000055bcc4663e30), values: Optional(0x00007ffc64545030), count: 4
+Context unwrapped successfully
+Values array converted: [10, 20, 30, 40]
+Polynomial modulus degree: 8192
+Encoding successful
+6. Plaintext encrypted successfully
+7. Ciphertext decrypted successfully
+8. Decoded values: [10, 20, 30, 40] (count: 4)
+9. Homomorphic addition result: [20, 40, 60, 80] (expected: [20, 40, 60, 80])
+10. Homomorphic subtraction result: [0, 0, 0, 0] (expected: [0, 0, 0, 0])
+11. Homomorphic multiplication result: [100, 400, 900, 1600] (expected: [100, 400, 900, 1600])
+12. Add plaintext result: [20, 40, 60, 80] (expected: [20, 40, 60, 80])
+13. Subtract plaintext result: [0, 0, 0, 0] (expected: [0, 0, 0, 0])
+14. Negation result: [-10, -20, -30, -40] (expected: [-10, -20, -30, -40])
+16. Ciphertext * Plaintext multiplication result: [100, 400, 900, 1600] (expected: [100, 400, 900, 1600])
+
+All BFV C interface tests passed!

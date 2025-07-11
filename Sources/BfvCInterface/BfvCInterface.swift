@@ -263,7 +263,7 @@ nonisolated public func bfv_encode_int_array(_ contextPtr: UnsafeMutableRawPoint
         
         let plaintext: Plaintext<Bfv<UInt64>, Coeff> = try contextWrapper.context.encode(
             values: valuesArray,
-            format: .coefficient
+            format: .simd
         )
         print("Encoding successful")
         
@@ -346,7 +346,7 @@ nonisolated public func bfv_decode_to_int_array(_ plaintextPtr: UnsafeMutableRaw
     
     do {
         let plaintextWrapper = Unmanaged<BfvPlaintextWrapper>.fromOpaque(plaintextPtr).takeUnretainedValue()
-        let decodedValues: [UInt64] = try plaintextWrapper.plaintext.decode(format: .coefficient)
+        let decodedValues: [UInt64] = try plaintextWrapper.plaintext.decode(format: .simd)
         
         let count = min(Int(maxCount), decodedValues.count)
         for i in 0..<count {
@@ -445,33 +445,36 @@ nonisolated public func bfv_multiply_plaintext(
         setThreadSafeError("Null ciphertext, plaintext, or evaluation key pointer(s)")
         return nil
     }
+    
     do {
         let ciphertextWrapper = Unmanaged<BfvCiphertextWrapper>.fromOpaque(ciphertextPtr).takeUnretainedValue()
         let plaintextWrapper = Unmanaged<BfvPlaintextWrapper>.fromOpaque(plaintextPtr).takeUnretainedValue()
         let evalKeyWrapper = Unmanaged<BfvEvaluationKeyWrapper>.fromOpaque(evalKeyPtr).takeUnretainedValue()
 
-        // Convert to NTT (Eval) form
-        let evalCiphertext = try Bfv<UInt64>.forwardNtt(ciphertextWrapper.ciphertext)
-        let evalPlaintext = try plaintextWrapper.plaintext.forwardNtt()
-
-        // Multiply in NTT domain
+        // Convert ciphertext to evaluation format for multiplication
+        let evalCiphertext = try ciphertextWrapper.ciphertext.convertToEvalFormat()
+        let evalPlaintext = try plaintextWrapper.plaintext.convertToEvalFormat()
+        
+        // Use the high-level Swift API for multiplication
         var result = evalCiphertext
-        try Bfv<UInt64>.mulAssign(&result, evalPlaintext)
+        try result *= evalPlaintext
+        
+        // Convert back to coefficient format
+        let coeffResult = try result.convertToCoeffFormat()
+        
+        // Relinearize if the ciphertext has more than 2 polynomials (after multiplication)
+        var finalResult = coeffResult
+        if finalResult.polyCount > 2 {
+            try finalResult.relinearize(using: evalKeyWrapper.evaluationKey)
+        }
 
-        //  Convert result back to Coeff form
-        var coeffResult = try Bfv<UInt64>.inverseNtt(result)
-
-        // Relinearize if needed
-        try Bfv<UInt64>.relinearize(&coeffResult, using: evalKeyWrapper.evaluationKey)
-
-        let wrapper = BfvCiphertextWrapper(ciphertext: coeffResult)
+        let wrapper = BfvCiphertextWrapper(ciphertext: finalResult)
         return UnsafeMutableRawPointer(Unmanaged.passRetained(wrapper).toOpaque())
     } catch {
         setThreadSafeError("Failed to multiply ciphertext by plaintext: \(error)")
         return nil
     }
 }
-
 
 @_cdecl("bfv_sub_plaintext")
 
