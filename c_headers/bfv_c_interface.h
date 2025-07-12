@@ -66,7 +66,7 @@ double bfv_get_noise_budget(bfv_ciphertext_t ciphertext, bfv_secret_key_t secret
 
 // Serialize ciphertext to Protobuf bytes
 // Returns number of bytes, or 0 on error. out_bytes must be freed by bfv_free_bytes.
-size_t bfv_serialize_ciphertext_to_protobuf(bfv_ciphertext_t ct, uint8_t** out_bytes);
+// size_t bfv_serialize_ciphertext_to_protobuf(bfv_ciphertext_t ct, uint8_t** out_bytes);
 
 // Deserialize Protobuf bytes to ciphertext
 // bfv_ciphertext_t bfv_deserialize_ciphertext_from_protobuf(const uint8_t* bytes, size_t len);

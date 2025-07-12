@@ -8,3 +8,5 @@
 .swiftpm
 .vscode/
 xcuserdata/
+cpp_tests/*
+!cpp_tests/*.cpp
